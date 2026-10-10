@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AIHOT 私人看板 · 按你关注的话题聚合</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --panel:#ffffff; --ink:#1c2024; --muted:#6b7280;
+    --line:#e6e8eb; --brand:#3b6ef5; --brand-soft:#eaf0ff;
+    --hot:#ff5a3c; --ok:#16a34a; --shadow:0 1px 3px rgba(0,0,0,.06),0 6px 20px rgba(0,0,0,.04);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;}
+  a{color:var(--brand);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:960px;margin:0 auto;padding:20px 16px 60px}
+  header{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;justify-content:space-between}
+  h1{font-size:22px;margin:0}
+  h1 .dot{color:var(--brand)}
+  .sub{color:var(--muted);font-size:13px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+  .controls{margin:16px 0;padding:14px 16px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+  .controls label{font-size:13px;color:var(--muted);margin-right:4px}
+  .controls input[type=text]{flex:1;min-width:240px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font-size:14px;background:#fff}
+  .controls select{padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:#fff;font-size:14px}
+  .btn{border:1px solid var(--line);background:#fff;color:var(--ink);padding:8px 13px;border-radius:9px;cursor:pointer;font-size:14px}
+  .btn:hover{background:#f0f2f5}
+  .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+  .btn.primary:hover{filter:brightness(1.05)}
+  .switch{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);cursor:pointer;user-select:none}
+  .tabs{display:flex;gap:6px;margin:6px 0 14px}
+  .tab{padding:8px 16px;border:1px solid var(--line);border-radius:999px;background:#fff;cursor:pointer;font-size:14px;color:var(--muted)}
+  .tab.active{background:var(--brand);border-color:var(--brand);color:#fff}
+  .meta-bar{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:13px;margin:4px 2px 12px}
+  .item{padding:14px 16px;border-bottom:1px solid var(--line)}
+  .item:last-child{border-bottom:0}
+  .item.read{opacity:.45}
+  .ititle{font-size:16px;font-weight:600;margin:0 0 4px}
+  .itags{display:inline-flex;gap:6px;flex-wrap:wrap;margin:2px 0 8px}
+  .tag{font-size:11px;padding:2px 8px;border-radius:999px;background:var(--brand-soft);color:var(--brand)}
+  .imeta{font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .score{font-weight:700;color:var(--ok)}
+  .isum{margin:8px 0;color:#374151}
+  .ireason{font-size:13px;color:var(--muted);background:#f8f9fb;border-left:3px solid var(--line);padding:7px 10px;border-radius:0 8px 8px 0;margin-top:6px}
+  .rank{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;border-radius:8px;background:var(--hot);color:#fff;font-weight:700;margin-right:10px;font-size:14px}
+  .rank.top{background:#ff3b1f}
+  .hotstat{font-size:12.5px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap;margin-top:6px}
+  .hotstat b{color:var(--hot)}
+  .empty{padding:40px 16px;text-align:center;color:var(--muted)}
+  .err{padding:14px 16px;background:#fff4f2;border:1px solid #ffd3c9;color:#b42318;border-radius:12px;margin-bottom:12px;font-size:14px}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--brand);border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px;margin-right:6px}
+  @keyframes s{to{transform:rotate(360deg)}}
+  footer{margin-top:26px;color:var(--muted);font-size:12.5px;text-align:center;line-height:1.8}
+  code{background:#eef0f3;padding:1px 6px;border-radius:5px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>AIHOT 私人看板<span class="dot">.</span></h1>
+      <div class="sub">按你关注的话题，实时聚合 aihot.news 的 AI 行业动态与热点榜</div>
+    </div>
+  </header>
+
+  <div class="card controls">
+    <div style="flex:1;min-width:260px">
+      <label>关注话题</label>
+      <input id="topics" type="text" placeholder="用逗号分隔，如 OpenAI, Anthropic, Agent, 安全对齐" />
+    </div>
+    <div>
+      <label>时间窗</label>
+      <select id="window">
+        <option value="1d">近 1 天</option>
+        <option value="3d">近 3 天</option>
+        <option value="7d" selected>近 7 天</option>
+      </select>
+    </div>
+    <button class="btn primary" id="save">保存并刷新</button>
+    <button class="btn" id="refresh">↻ 刷新</button>
+    <label class="switch"><input type="checkbox" id="auto" /> 自动(10分钟)</label>
+    <label class="switch"><input type="checkbox" id="hideread" /> 隐藏已读</label>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="follow">我的关注</div>
+    <div class="tab" data-tab="hot">AI 热点榜</div>
+  </div>
+
+  <div class="meta-bar">
+    <span id="status">就绪</span>
+    <span id="updated"></span>
+  </div>
+
+  <div class="card" id="list"></div>
+
+  <footer>
+    数据来源：<a href="https://aihot.news" target="_blank" rel="noopener">aihot.news</a> 公开只读 API（已开启 CORS，浏览器直连，无需后端）<br/>
+    接口：<code>/api/v1/items?q=话题&amp;window=7d</code> 与 <code>/api/v1/hot-topics</code> · 关注话题与已读状态仅保存在本机浏览器
+  </footer>
+</div>
+
+<script>
+const API = "https://aihot.news/api/v1";
+const LS_TOPICS = "aihot_topics";
+const LS_SEEN = "aihot_seen";
+const DEFAULT_TOPICS = "OpenAI, Anthropic, Agent, 安全对齐, Gemini, 推理";
+
+let state = { tab: "follow", seen: new Set() };
+
+// ---------- 工具 ----------
+function $(id){ return document.getElementById(id); }
+function loadSeen(){ try{ state.seen = new Set(JSON.parse(localStorage.getItem(LS_SEEN)||"[]")); }catch(e){ state.seen = new Set(); } }
+function saveSeen(){ localStorage.setItem(LS_SEEN, JSON.stringify([...state.seen])); }
+function relTime(iso){
+  const d = new Date(iso), s = (Date.now()-d.getTime())/1000;
+  if(s<60) return "刚刚";
+  if(s<3600) return Math.floor(s/60)+" 分钟前";
+  if(s<86400) return Math.floor(s/3600)+" 小时前";
+  return Math.floor(s/86400)+" 天前";
+}
+function esc(s){ return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function getTopics(){
+  return ($("topics").value||"").split(/[,，\s]+/).map(t=>t.trim()).filter(Boolean);
+}
+
+// ---------- 渲染：我的关注 ----------
+async function loadFollow(){
+  const topics = getTopics();
+  const win = $("window").value;
+  const map = new Map();
+  let warn = [];
+  await Promise.all(topics.map(async t=>{
+    try{
+      const r = await fetch(`${API}/items?q=${encodeURIComponent(t)}&window=${win}&limit=50`);
+      if(!r.ok) throw new Error("HTTP "+r.status);
+      const j = await r.json();
+      (j.items||[]).forEach(it=>{ if(!map.has(it.id)) map.set(it.id, {...it, _topics:[t]}); else map.get(it.id)._topics.push(t); });
+    }catch(e){ warn.push(t); }
+  }));
+  let items = [...map.values()].sort((a,b)=> new Date(b.discoveredAt)-new Date(a.discoveredAt));
+  if($("hideread").checked) items = items.filter(it=>!state.seen.has(it.id));
+
+  const box = $("list");
+  if(!items.length){ box.innerHTML = `<div class="empty">没有匹配「${esc(topics.join(" / "))}」的条目，换个话题或拉长时间窗试试。</div>`; }
+  else{
+    box.innerHTML = items.map(it=>{
+      const read = state.seen.has(it.id);
+      const tags = (it._topics||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join("");
+      return `<div class="item ${read?'read':''}" data-id="${it.id}">
+        <div class="itags">${tags}</div>
+        <p class="ititle"><a href="${esc(it.links.aihot)}" target="_blank" rel="noopener">${esc(it.title)}</a></p>
+        <div class="imeta">
+          <span>📰 ${esc(it.source?.name||"未知来源")}</span>
+          <span>🏷 ${esc(it.category||"-")}</span>
+          <span class="score">AI评分 ${it.score??"-"}</span>
+          <span>🕒 ${relTime(it.discoveredAt)}</span>
+          ${it.links.original?`<a href="${esc(it.links.original)}" target="_blank" rel="noopener">原文↗</a>`:""}
+        </div>
+        ${it.summary?`<div class="isum">${esc(it.summary)}</div>`:""}
+        ${it.reason?`<div class="ireason">推荐理由：${esc(it.reason)}</div>`:""}
+      </div>`;
+    }).join("");
+    box.querySelectorAll(".item").forEach(el=>{
+      el.addEventListener("click",e=>{
+        if(e.target.tagName==="A") return;
+        const id = el.dataset.id; state.seen.add(id); saveSeen(); el.classList.add("read");
+      });
+    });
+  }
+  const w = warn.length?` · ⚠️ ${warn.join("/")} 拉取失败`:"";
+  setStatus(`我的关注：共 ${items.length} 条${w}`);
+}
+
+// ---------- 渲染：热点榜 ----------
+async function loadHot(){
+  const r = await fetch(`${API}/hot-topics`);
+  if(!r.ok) throw new Error("HTTP "+r.status);
+  const j = await r.json();
+  const items = j.items||[];
+  const box = $("list");
+  if(!items.length){ box.innerHTML = `<div class="empty">暂无可用的热点事件。</div>`; }
+  else{
+    box.innerHTML = items.map(it=>{
+      const rank = it.rank;
+      const rc = rank<=3?"rank top":"rank";
+      const stat = `信源 <b>${it.sourceCount??0}</b> · 参与者 <b>${it.participantCount??0}</b> · 信号 <b>${it.signalCount??0}</b>`;
+      const link = it.links?.story || it.links?.aihot || "#";
+      const names = (it.sourceNames||[]).slice(0,4).map(esc).join("、");
+      return `<div class="item">
+        <div style="display:flex;align-items:flex-start">
+          <span class="${rc}">${rank}</span>
+          <div style="flex:1">
+            <p class="ititle"><a href="${esc(link)}" target="_blank" rel="noopener">${esc(it.title)}</a></p>
+            <div class="imeta"><span>📰 ${esc(it.source?.name||"")}</span><span>🕒 ${relTime(it.latestAt)}</span></div>
+            <div class="hotstat">${stat}</div>
+            ${names?`<div class="hotstat">涉及：${names}${(it.sourceNames||[]).length>4?" 等":""}</div>`:""}
+          </div>
+        </div>
+      </div>`;
+    }).join("");
+  }
+  setStatus(`AI 热点榜：共 ${items.length} 个事件`);
+}
+
+// ---------- 调度 ----------
+function setStatus(t){ $("status").innerHTML = t; $("updated").textContent = "更新于 "+new Date().toLocaleTimeString(); }
+async function run(){
+  const box = $("list");
+  box.innerHTML = `<div class="empty"><span class="spin"></span>正在拉取 ${esc(state.tab==="follow"?"关注内容":"热点榜")}…</div>`;
+  try{
+    if(state.tab==="follow") await loadFollow(); else await loadHot();
+  }catch(e){
+    box.innerHTML = `<div class="err">加载失败：${esc(e.message)}。可能是网络波动或触发接口限流（约 60 次/分钟），稍后点「刷新」重试。</div>`;
+    setStatus("加载失败");
+  }
+}
+
+// ---------- 交互 ----------
+function switchTab(t){ state.tab=t; document.querySelectorAll(".tab").forEach(el=>el.classList.toggle("active",el.dataset.tab===t)); run(); }
+document.querySelectorAll(".tab").forEach(el=>el.addEventListener("click",()=>switchTab(el.dataset.tab)));
+$("refresh").addEventListener("click",run);
+$("save").addEventListener("click",()=>{ localStorage.setItem(LS_TOPICS,$("topics").value); run(); });
+$("hideread").addEventListener("change",()=>{ if(state.tab==="follow") run(); });
+let timer=null;
+$("auto").addEventListener("change",e=>{
+  if(e.target.checked){ timer=setInterval(run,10*60*1000); setStatus("自动刷新已开启（10 分钟）"); }
+  else{ clearInterval(timer); timer=null; }
+});
+
+// ---------- 初始化 ----------
+(function init(){
+  loadSeen();
+  $("topics").value = localStorage.getItem(LS_TOPICS) || DEFAULT_TOPICS;
+  run();
+})();
+</script>
+</body>
+</html>
